@@ -95,9 +95,10 @@ bridge_13frame_480_640_val_dataset = L(Dataset_3D)(
 
 
 # ------------------------------------------------------------
+# Helper functions (must be defined before dataloader definitions)
+# ------------------------------------------------------------
 
 
-# create dataloader for each dataset
 def get_sampler(dataset):
     return DistributedSampler(
         dataset,
@@ -125,6 +126,58 @@ def build_webdataset(webdataset_instance, **kwargs):
         if hasattr(webdataset_instance, key):
             setattr(webdataset_instance, key, value)
     return webdataset_instance.build_dataset()
+
+
+# ---- LIBERO dataset (converted from LeRobotDataset) ----
+libero_base_path = os.environ.get("LIBERO_COSMOS_DATA", "datasets/libero_cosmos/")
+libero_train_annotation_path = os.path.join(libero_base_path, "annotation/train")
+libero_val_annotation_path = os.path.join(libero_base_path, "annotation/val")
+
+libero_13frame_train_dataset = L(Dataset_3D)(
+    train_annotation_path=libero_train_annotation_path,
+    val_annotation_path=libero_val_annotation_path,
+    test_annotation_path=libero_val_annotation_path,
+    video_path=libero_base_path,
+    fps_downsample_ratio=1,
+    num_action_per_chunk=12,
+    cam_ids=["0"],
+    accumulate_action=False,
+    video_size=[256, 320],
+    val_start_frame_interval=1,
+    mode="train",
+    state_key="state",
+    gripper_key="continuous_gripper_state",
+    gripper_rescale_factor=1.0,
+)
+libero_13frame_val_dataset = L(Dataset_3D)(
+    train_annotation_path=libero_train_annotation_path,
+    val_annotation_path=libero_val_annotation_path,
+    test_annotation_path=libero_val_annotation_path,
+    video_path=libero_base_path,
+    fps_downsample_ratio=1,
+    num_action_per_chunk=12,
+    cam_ids=["0"],
+    accumulate_action=False,
+    video_size=[256, 320],
+    val_start_frame_interval=1,
+    mode="val",
+    state_key="state",
+    gripper_key="continuous_gripper_state",
+    gripper_rescale_factor=1.0,
+)
+
+libero_13frame_train_dataloader = L(DataLoader)(
+    dataset=libero_13frame_train_dataset,
+    sampler=L(get_sampler)(dataset=libero_13frame_train_dataset),
+    batch_size=1,
+    drop_last=True,
+)
+libero_13frame_val_dataloader = L(DataLoader)(
+    dataset=libero_13frame_val_dataset,
+    sampler=L(get_sampler)(dataset=libero_13frame_val_dataset),
+    batch_size=1,
+    drop_last=True,
+)
 
 
 bridge_train_dataloader = L(DataLoader)(
@@ -197,6 +250,20 @@ def register_training_and_val_data():
         package="dataloader_val",
         name="bridge_13frame_480_640_val",
         node=bridge_13frame_480_640_val_dataloader,
+    )
+
+    # LIBERO 13 frame 256 320
+    cs.store(
+        group="data_train",
+        package="dataloader_train",
+        name="libero_train",
+        node=libero_13frame_train_dataloader,
+    )
+    cs.store(
+        group="data_val",
+        package="dataloader_val",
+        name="libero_val",
+        node=libero_13frame_val_dataloader,
     )
 
     # Register gr00t_customized_gr1 data

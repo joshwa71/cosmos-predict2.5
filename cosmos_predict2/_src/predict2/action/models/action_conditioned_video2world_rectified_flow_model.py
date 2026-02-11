@@ -204,10 +204,14 @@ class ActionVideo2WorldModelRectifiedFlow(Text2WorldModelRectifiedFlow):
             )
 
         # forward pass through the network
+        condition_dict = condition.to_dict()
+        # If text encoder is disabled, nullify crossattn_emb to avoid shape mismatch
+        if not hasattr(self, 'text_encoder') or self.text_encoder is None:
+            condition_dict["crossattn_emb"] = None
         net_output_B_C_T_H_W = self.net(
             x_B_C_T_H_W=xt_B_C_T_H_W.to(**self.tensor_kwargs),  # Eq. 7 of https://arxiv.org/pdf/2206.00364.pdf
             timesteps_B_T=timesteps_B_T,  # Eq. 7 of https://arxiv.org/pdf/2206.00364.pdf
-            **condition.to_dict(),
+            **condition_dict,
         ).float()
 
         if condition.is_video and self.config.denoise_replace_gt_frames:

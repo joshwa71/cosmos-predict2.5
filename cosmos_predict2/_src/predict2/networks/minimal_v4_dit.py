@@ -1362,14 +1362,15 @@ class Block(nn.Module):
             # _x_B_T_H_W_D = _x_B_T_H_W_D + _gate_cross_attn_B_T_1_1_D * _result_B_T_H_W_D
             return _result_B_T_H_W_D
 
-        result_B_T_H_W_D = _x_fn(
-            x_B_T_H_W_D,
-            self.layer_norm_cross_attn,
-            scale_cross_attn_B_T_1_1_D,
-            shift_cross_attn_B_T_1_1_D,
-            gate_cross_attn_B_T_1_1_D,
-        )
-        x_B_T_H_W_D = result_B_T_H_W_D * gate_cross_attn_B_T_1_1_D + x_B_T_H_W_D
+        if crossattn_emb is not None:
+            result_B_T_H_W_D = _x_fn(
+                x_B_T_H_W_D,
+                self.layer_norm_cross_attn,
+                scale_cross_attn_B_T_1_1_D,
+                shift_cross_attn_B_T_1_1_D,
+                gate_cross_attn_B_T_1_1_D,
+            )
+            x_B_T_H_W_D = result_B_T_H_W_D * gate_cross_attn_B_T_1_1_D + x_B_T_H_W_D
 
         normalized_x_B_T_H_W_D = _fn(
             x_B_T_H_W_D,

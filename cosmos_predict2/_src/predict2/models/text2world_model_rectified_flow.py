@@ -92,6 +92,7 @@ class Text2WorldModelRectifiedFlowConfig:
     use_lora: bool = False
     lora_rank: int = 32
     lora_alpha: int = 32
+    lora_dropout: float = 0.0
     use_dora: bool = False
     lora_target_modules: str = "q_proj,k_proj,v_proj,output_proj,mlp.layer1,mlp.layer2"
     init_lora_weights: bool = True
@@ -209,6 +210,7 @@ class Text2WorldModelRectifiedFlow(ImaginaireModel):
                         net,
                         lora_rank=config.lora_rank,
                         lora_alpha=config.lora_alpha,
+                        lora_dropout=config.lora_dropout,
                         lora_target_modules=config.lora_target_modules,
                         init_lora_weights=config.init_lora_weights,
                         use_dora=config.use_dora,
@@ -225,6 +227,7 @@ class Text2WorldModelRectifiedFlow(ImaginaireModel):
                         net,
                         lora_rank=config.lora_rank,
                         lora_alpha=config.lora_alpha,
+                        lora_dropout=config.lora_dropout,
                         lora_target_modules=config.lora_target_modules,
                         init_lora_weights=config.init_lora_weights,
                         use_dora=config.use_dora,
@@ -1045,6 +1048,7 @@ class Text2WorldModelRectifiedFlow(ImaginaireModel):
         network: torch.nn.Module,
         lora_rank: int = 4,
         lora_alpha: int = 4,
+        lora_dropout: float = 0.0,
         lora_target_modules: str = "q_proj,k_proj,v_proj,output_proj,mlp.layer1,mlp.layer2",
         init_lora_weights: bool = True,
         use_dora: bool = False,
@@ -1102,12 +1106,13 @@ class Text2WorldModelRectifiedFlow(ImaginaireModel):
         self.lora_alpha = lora_alpha
 
         log.info(
-            f"Adding LoRA adapters: rank={lora_rank}, alpha={lora_alpha}, targets={target_modules_list}, use_dora={use_dora}"
+            f"Adding LoRA adapters: rank={lora_rank}, alpha={lora_alpha}, dropout={lora_dropout}, targets={target_modules_list}, use_dora={use_dora}"
         )
 
         lora_config = LoraConfig(
             r=lora_rank,
             lora_alpha=lora_alpha,
+            lora_dropout=lora_dropout,
             init_lora_weights=init_lora_weights,
             target_modules=target_modules_list,
             use_dora=use_dora,

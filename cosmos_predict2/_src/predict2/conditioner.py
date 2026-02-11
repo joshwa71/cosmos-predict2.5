@@ -218,6 +218,8 @@ class AbstractEmbModel(nn.Module):
         self, in_tensor: torch.Tensor, dropout_rate: Optional[float] = None, key: Optional[str] = None
     ) -> torch.Tensor:
         del key
+        if in_tensor is None:
+            return None
         dropout_rate = dropout_rate if dropout_rate is not None else self.dropout_rate
         return batch_mul(
             torch.bernoulli((1.0 - dropout_rate) * torch.ones(in_tensor.shape[0])).type_as(in_tensor),
@@ -271,6 +273,8 @@ class TextAttr(AbstractEmbModel):
     def random_dropout_input(
         self, in_tensor: torch.Tensor, dropout_rate: Optional[float] = None, key: Optional[str] = None
     ) -> torch.Tensor:
+        if in_tensor is None:
+            return None
         if key is not None and "mask" in key:
             return in_tensor
         if not self.use_empty_string:
@@ -494,8 +498,12 @@ class GeneralConditioner(nn.Module, ABC):
                     )
             for k, v in emb_out.items():
                 output[k].append(v)
-        # Concatenate the outputs
-        return {k: torch.cat(v, dim=self.KEY2DIM.get(k, -1)) for k, v in output.items()}
+        # Concatenate the outputs (skip None values from disabled embedders)
+        result = {}
+        for k, v in output.items():
+            non_none = [x for x in v if x is not None]
+            result[k] = torch.cat(non_none, dim=self.KEY2DIM.get(k, -1)) if non_none else None
+        return result
 
     def get_condition_uncondition(
         self,

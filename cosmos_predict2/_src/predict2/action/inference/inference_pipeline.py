@@ -141,6 +141,13 @@ class ActionVideo2WorldInference:
                     data_batch={"ai_caption": [negative_prompt], "images": None},
                     input_caption_key="ai_caption",
                 )
+        elif getattr(getattr(self.model, 'config', None), 'text_encoder_config', 'present') is None:
+            # Text encoder explicitly disabled (e.g. action-conditioned models) —
+            # skip T5 loading entirely. The conditioner and DiT forward pass handle
+            # None crossattn_emb via null guards.
+            data_batch["t5_text_embeddings"] = None
+            if use_neg_prompt:
+                data_batch["neg_t5_text_embeddings"] = None
         else:
             data_batch["t5_text_embeddings"] = get_text_embedding(prompt)
             if use_neg_prompt:

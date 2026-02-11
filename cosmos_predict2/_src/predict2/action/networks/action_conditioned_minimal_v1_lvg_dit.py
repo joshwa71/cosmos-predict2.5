@@ -121,7 +121,7 @@ class ActionConditionedMinimalV1LVGDiT(MiniTrainDIT):
             padding_mask=padding_mask,
         )
 
-        if self.use_crossattn_projection:
+        if crossattn_emb is not None and self.use_crossattn_projection:
             crossattn_emb = self.crossattn_proj(crossattn_emb)
 
         if img_context_emb is not None:
@@ -288,7 +288,7 @@ class ActionChunkConditionedMinimalV1LVGDiT(MiniTrainDIT):
             padding_mask=padding_mask,
         )
 
-        if self.use_crossattn_projection:
+        if crossattn_emb is not None and self.use_crossattn_projection:
             crossattn_emb = self.crossattn_proj(crossattn_emb)
 
         if img_context_emb is not None:
