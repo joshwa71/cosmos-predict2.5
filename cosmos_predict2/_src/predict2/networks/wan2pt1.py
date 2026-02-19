@@ -37,7 +37,10 @@ from torch.distributed._composable.fsdp import fully_shard
 from torch.distributed.algorithms._checkpoint.checkpoint_wrapper import checkpoint_wrapper as ptd_checkpoint_wrapper
 from torch.nn.modules.module import _IncompatibleKeys
 from torchvision import transforms
-from transformer_engine.pytorch.attention import DotProductAttention
+try:
+    from transformer_engine.pytorch.attention import DotProductAttention
+except ImportError:
+    DotProductAttention = None
 
 from cosmos_predict2._src.imaginaire.utils import log
 from cosmos_predict2._src.imaginaire.utils.context_parallel import split_inputs_cp

@@ -24,7 +24,14 @@ from typing import List, Optional, Tuple, Union
 import numpy as np
 import torch
 import torch.amp as amp
-import transformer_engine as te
+try:
+    import transformer_engine as te
+
+    _TE_RMSNORM = te.pytorch.RMSNorm
+except ImportError:
+    te = None
+    _TE_RMSNORM = None
+
 from einops import rearrange, repeat
 from einops.layers.torch import Rearrange
 from torch import nn
@@ -40,10 +47,30 @@ except ImportError:
 from packaging.version import Version
 from torchvision import transforms
 
-if Version(te.__version__) >= Version("2.8.0"):
+try:
     from transformer_engine.pytorch.attention.rope import apply_rotary_pos_emb
-else:
-    from transformer_engine.pytorch.attention import apply_rotary_pos_emb
+except ImportError:
+    try:
+        from transformer_engine.pytorch.attention import apply_rotary_pos_emb
+    except (ImportError, ModuleNotFoundError):
+        def _rotate_half(x):
+            x1, x2 = x.chunk(2, dim=-1)
+            return torch.cat((-x2, x1), dim=-1)
+
+        def apply_rotary_pos_emb(x, freqs, tensor_format="bshd", fused=False):
+            if tensor_format == "bshd":
+                x = x.transpose(0, 1)
+            cos, sin = freqs.cos(), freqs.sin()
+            out = x * cos + _rotate_half(x) * sin
+            if tensor_format == "bshd":
+                out = out.transpose(0, 1)
+            return out
+
+
+def _get_rmsnorm(dim, eps=1e-6):
+    if _TE_RMSNORM is not None:
+        return _TE_RMSNORM(dim, eps=eps)
+    return torch.nn.RMSNorm(dim, eps=eps)
 
 from cosmos_predict2._src.imaginaire.utils import log
 from cosmos_predict2._src.imaginaire.utils.context_parallel import split_inputs_cp
@@ -352,10 +379,10 @@ class Attention(nn.Module):
         self.use_wan_fp32_strategy = use_wan_fp32_strategy
 
         self.q_proj = nn.Linear(query_dim, inner_dim, bias=False)
-        self.q_norm = te.pytorch.RMSNorm(self.head_dim, eps=1e-6)
+        self.q_norm = _get_rmsnorm(self.head_dim, eps=1e-6)
 
         self.k_proj = nn.Linear(context_dim, inner_dim, bias=False)
-        self.k_norm = te.pytorch.RMSNorm(self.head_dim, eps=1e-6)
+        self.k_norm = _get_rmsnorm(self.head_dim, eps=1e-6)
 
         self.v_proj = nn.Linear(context_dim, inner_dim, bias=False)
         self.v_norm = nn.Identity()
@@ -459,7 +486,7 @@ class I2VCrossAttention(Attention):
         inner_dim = self.head_dim * self.n_heads
         self.k_img = nn.Linear(img_latent_dim, inner_dim, bias=False)
         self.v_img = nn.Linear(img_latent_dim, inner_dim, bias=False)
-        self.k_img_norm = te.pytorch.RMSNorm(self.head_dim, eps=1e-6)
+        self.k_img_norm = _get_rmsnorm(self.head_dim, eps=1e-6)
 
     def init_weights(self) -> None:
         super().init_weights()
@@ -1423,7 +1450,7 @@ class CameraMiniTrainDIT(WeightTrainingStat):
             use_wan_fp32_strategy=self.use_wan_fp32_strategy,
         )
 
-        self.t_embedding_norm = te.pytorch.RMSNorm(model_channels, eps=1e-6)
+        self.t_embedding_norm = _get_rmsnorm(model_channels, eps=1e-6)
         if extra_image_context_dim is not None:
             self.img_context_proj = nn.Sequential(
                 nn.Linear(

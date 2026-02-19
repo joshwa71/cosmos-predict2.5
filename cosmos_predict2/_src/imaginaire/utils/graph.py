@@ -21,8 +21,13 @@ import torch
 from torch._C import _graph_pool_handle
 from torch.utils._pytree import tree_flatten as _tree_flatten
 from torch.utils._pytree import tree_unflatten as _tree_unflatten
-from transformer_engine.pytorch.distributed import get_all_rng_states, graph_safe_rng_available
-from transformer_engine.pytorch.module.base import TransformerEngineBaseModule
+try:
+    from transformer_engine.pytorch.distributed import get_all_rng_states, graph_safe_rng_available
+    from transformer_engine.pytorch.module.base import TransformerEngineBaseModule
+except ImportError:
+    get_all_rng_states = None
+    graph_safe_rng_available = None
+    TransformerEngineBaseModule = None
 
 from cosmos_predict2._src.imaginaire.utils import log
 
