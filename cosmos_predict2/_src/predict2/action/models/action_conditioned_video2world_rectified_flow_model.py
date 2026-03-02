@@ -151,7 +151,6 @@ class ActionVideo2WorldModelRectifiedFlow(Text2WorldModelRectifiedFlow):
         for num_step, t in enumerate(timesteps_iter):
             if num_step in query_steps:
                 latent_to_save[num_step] = latents
-                print(f"Saving latent at step {num_step}, timestep {t}")
 
             latent_model_input = latents
             timestep = [t]
