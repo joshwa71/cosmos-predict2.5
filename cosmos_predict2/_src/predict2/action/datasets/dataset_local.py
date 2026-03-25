@@ -41,6 +41,13 @@ from tqdm import tqdm
 from cosmos_predict2._src.imaginaire.flags import INTERNAL
 from cosmos_predict2._src.imaginaire.utils.dataset_utils import Resize_Preprocess, ToTensorVideo, euler2rotm, rotm2euler
 
+try:
+    from lerobot.world_models.cosmos.libero_action_mapping import (
+        convert_libero_raw_action_chunk_from_cosmos_state,
+    )
+except ImportError:
+    convert_libero_raw_action_chunk_from_cosmos_state = None
+
 
 class Dataset_3D(Dataset):
     def __init__(
@@ -317,6 +324,50 @@ class Dataset_3D(Dataset):
                 action[k - 1, 6] = curr_gripper
         return torch.from_numpy(action)  # (l - 1, act_dim)
 
+    def _get_explicit_actions(self, label, frame_ids):
+        """Load explicit action annotations when present.
+
+        Bridge-style datasets store Cosmos-native actions in ``label["action"]``.
+        The LeRobot LIBERO bridge stores raw LeRobot actions in
+        ``label["libero_raw_action"]`` and marks the episode metadata so we can
+        map them into Cosmos format consistently with eval-time inference.
+        """
+        if self.fps_downsample_ratio != 1:
+            return None
+
+        action_ids = frame_ids[:-1]
+        max_action_id = max(action_ids) if action_ids else -1
+
+        if "action" in label:
+            all_actions = np.array(label["action"], dtype=np.float64)
+            if len(all_actions) > max_action_id:
+                return torch.from_numpy(all_actions[action_ids])
+
+        episode_metadata = label.get("episode_metadata", {})
+        if (
+            episode_metadata.get("action_format") == "lerobot_libero_raw"
+            and "libero_raw_action" in label
+        ):
+            if convert_libero_raw_action_chunk_from_cosmos_state is None:
+                raise ImportError(
+                    "LIBERO raw action annotations require lerobot's "
+                    "libero_action_mapping helper to be importable."
+                )
+
+            all_raw_actions = np.array(label["libero_raw_action"], dtype=np.float64)
+            if len(all_raw_actions) <= max_action_id:
+                return None
+
+            start_state = np.array(label[self._state_key], dtype=np.float64)[frame_ids[0]]
+            return torch.from_numpy(
+                convert_libero_raw_action_chunk_from_cosmos_state(
+                    start_state,
+                    all_raw_actions[action_ids],
+                )
+            )
+
+        return None
+
     def __getitem__(self, index, cam_id=None, return_video=False):
         if self.mode != "train":
             np.random.seed(index)
@@ -328,8 +379,10 @@ class Dataset_3D(Dataset):
             frame_ids = sample["frame_ids"]
             with open(ann_file, "r") as f:
                 label = json.load(f)
-            arm_states, gripper_states = self._get_robot_states(label, frame_ids)
-            actions = self._get_actions(arm_states, gripper_states, self.accumulate_action)
+            actions = self._get_explicit_actions(label, frame_ids)
+            if actions is None:
+                arm_states, gripper_states = self._get_robot_states(label, frame_ids)
+                actions = self._get_actions(arm_states, gripper_states, self.accumulate_action)
             actions *= self.c_act_scaler
 
             data = dict()
