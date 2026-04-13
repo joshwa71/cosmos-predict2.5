@@ -34,7 +34,14 @@ class ActionVideo2WorldInference:
     and video generation from an image/video and text prompt. Now supports context parallelism.
     """
 
-    def __init__(self, experiment_name: str, ckpt_path: str, s3_credential_path: str, context_parallel_size: int = 1):
+    def __init__(
+        self,
+        experiment_name: str,
+        ckpt_path: str,
+        s3_credential_path: str,
+        context_parallel_size: int = 1,
+        config_file: str = "cosmos_predict2/_src/predict2/action/configs/action_conditioned/config.py",
+    ):
         """
         Initializes the Video2WorldInference class.
 
@@ -51,6 +58,7 @@ class ActionVideo2WorldInference:
         self.ckpt_path = ckpt_path
         self.s3_credential_path = s3_credential_path
         self.context_parallel_size = context_parallel_size
+        self.config_file = config_file
         self.process_group = None
 
         # Initialize distributed processing if context parallel size > 1
@@ -61,7 +69,7 @@ class ActionVideo2WorldInference:
         model, config = load_model_from_checkpoint(
             experiment_name=self.experiment_name,
             s3_checkpoint_dir=self.ckpt_path,
-            config_file="cosmos_predict2/_src/predict2/action/configs/action_conditioned/config.py",
+            config_file=self.config_file,
             load_ema_to_reg=True,
         )
 

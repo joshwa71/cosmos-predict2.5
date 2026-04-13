@@ -72,6 +72,8 @@ class Dataset_3D(Dataset):
         state_key="state",
         gripper_key="continuous_gripper_state",
         gripper_rescale_factor=1.0,
+        action_dim=7,
+        action_scaler=20.0,
         is_rollout=None,
     ):
         """Dataset class for loading 3D robot action-conditional data.
@@ -141,9 +143,10 @@ class Dataset_3D(Dataset):
         self.accumulate_action = accumulate_action
         self.is_rollout = is_rollout
 
-        self.action_dim = 7  # ee xyz (3) + ee euler (3) + gripper(1)
-        self.c_act_scaler = [20.0, 20.0, 20.0, 20.0, 20.0, 20.0, gripper_rescale_factor]
-        self.c_act_scaler = np.array(self.c_act_scaler, dtype=float)
+        self.action_dim = int(action_dim)
+        self.c_act_scaler = np.full(self.action_dim, float(action_scaler), dtype=float)
+        if self.action_dim > 0:
+            self.c_act_scaler[-1] = float(gripper_rescale_factor)
         self.ann_files = self._init_anns(self.data_path)
         self._filter_rollout()
 
@@ -287,6 +290,11 @@ class Dataset_3D(Dataset):
         return arm_states, cont_gripper_states
 
     def _get_actions(self, arm_states, gripper_states, accumulate_action):
+        if self.action_dim != 7:
+            raise ValueError(
+                "Dataset_3D fallback action reconstruction expects action_dim=7. "
+                "Provide explicit Cosmos-native actions in label['action'] for non-7D datasets."
+            )
         action = np.zeros((self.sequence_length - 1, self.action_dim))
         if accumulate_action:
             base_xyz = arm_states[0, 0:3]
