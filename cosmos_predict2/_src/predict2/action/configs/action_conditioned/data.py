@@ -180,6 +180,60 @@ libero_13frame_val_dataloader = L(DataLoader)(
 )
 
 
+# ---- MetaWorld dataset (converted from LeRobotDataset) ----
+metaworld_base_path = os.environ.get("METAWORLD_COSMOS_DATA", "datasets/metaworld_cosmos/")
+metaworld_train_annotation_path = os.path.join(metaworld_base_path, "annotation/train")
+metaworld_val_annotation_path = os.path.join(metaworld_base_path, "annotation/val")
+
+metaworld_13frame_train_dataset = L(Dataset_3D)(
+    train_annotation_path=metaworld_train_annotation_path,
+    val_annotation_path=metaworld_val_annotation_path,
+    test_annotation_path=metaworld_val_annotation_path,
+    video_path=metaworld_base_path,
+    fps_downsample_ratio=1,
+    num_action_per_chunk=12,
+    cam_ids=["0"],
+    accumulate_action=False,
+    video_size=[256, 256],
+    val_start_frame_interval=1,
+    mode="train",
+    state_key="state",
+    gripper_key="continuous_gripper_state",
+    gripper_rescale_factor=1.0,
+    action_dim=4,
+)
+metaworld_13frame_val_dataset = L(Dataset_3D)(
+    train_annotation_path=metaworld_train_annotation_path,
+    val_annotation_path=metaworld_val_annotation_path,
+    test_annotation_path=metaworld_val_annotation_path,
+    video_path=metaworld_base_path,
+    fps_downsample_ratio=1,
+    num_action_per_chunk=12,
+    cam_ids=["0"],
+    accumulate_action=False,
+    video_size=[256, 256],
+    val_start_frame_interval=1,
+    mode="val",
+    state_key="state",
+    gripper_key="continuous_gripper_state",
+    gripper_rescale_factor=1.0,
+    action_dim=4,
+)
+
+metaworld_13frame_train_dataloader = L(DataLoader)(
+    dataset=metaworld_13frame_train_dataset,
+    sampler=L(get_sampler)(dataset=metaworld_13frame_train_dataset),
+    batch_size=1,
+    drop_last=True,
+)
+metaworld_13frame_val_dataloader = L(DataLoader)(
+    dataset=metaworld_13frame_val_dataset,
+    sampler=L(get_sampler)(dataset=metaworld_13frame_val_dataset),
+    batch_size=1,
+    drop_last=True,
+)
+
+
 bridge_train_dataloader = L(DataLoader)(
     dataset=bridge_train_dataset,
     sampler=L(get_sampler)(dataset=bridge_train_dataset),
@@ -264,6 +318,18 @@ def register_training_and_val_data():
         package="dataloader_val",
         name="libero_val",
         node=libero_13frame_val_dataloader,
+    )
+    cs.store(
+        group="data_train",
+        package="dataloader_train",
+        name="metaworld_train",
+        node=metaworld_13frame_train_dataloader,
+    )
+    cs.store(
+        group="data_val",
+        package="dataloader_val",
+        name="metaworld_val",
+        node=metaworld_13frame_val_dataloader,
     )
 
     # Register gr00t_customized_gr1 data
